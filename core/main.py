@@ -1,21 +1,16 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, EmailStr
 from email.message import EmailMessage
-import aiosmtplib
+import aiosmtplib, os
 
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"], allow_credentials=True,
+    allow_methods=["*"], allow_headers=["*"],
 )
 
-
-# --- Settings (use env vars in production) ---
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_USER = "benxfoxy@gmail.com"
@@ -23,51 +18,46 @@ SMTP_PASS = "rjes bdxo dlrq tpel"  # replace with your Gmail App Password
 TO_EMAIL   = "benxfoxy@gmail.com"
 FROM_EMAIL = SMTP_USER
 
-# --- Schema ---
 class ContactSchema(BaseModel):
-    name: str = Field(...)
-    last_name: str = Field(...)
+    name: str
+    last_name: str
     email: EmailStr
-    phone_number: str = Field(...)
-    description: str = Field(...)
+    phone_number: str
+    description: str
 
-
-# --- Build and send email ---
-def build_contact_email(payload: ContactSchema) -> EmailMessage:
+def build_contact_email(p: ContactSchema) -> EmailMessage:
     msg = EmailMessage()
     msg["From"] = FROM_EMAIL
     msg["To"] = TO_EMAIL
-    msg["Subject"] = f"New contact request from {payload.name} {payload.last_name}"
+    msg["Subject"] = f"New contact request from {p.name} {p.last_name}"
+    msg.set_content(f"""You have a new contact request:
 
-    body = f"""
-    You have a new contact request:
+Name: {p.name} {p.last_name}
+Email: {p.email}
+Phone: {p.phone_number}
 
-    Name: {payload.name} {payload.last_name}
-    Email: {payload.email}
-    Phone: {payload.phone_number}
-
-    Message:
-    {payload.description}
-    """
-    msg.set_content(body)
+Message:
+{p.description}
+""")
     return msg
 
-
-async def send_email_message(msg: EmailMessage):
-    await aiosmtplib.send(
-        msg,
-        hostname=SMTP_HOST,
-        port=SMTP_PORT,
-        start_tls=True,
-        username=SMTP_USER,
-        password=SMTP_PASS,
-    )
-
-
-# --- Route ---
-@app.post("/")
-async def contact(payload: ContactSchema, bg: BackgroundTasks):
+@app.post("/contact")
+async def contact(payload: ContactSchema):
     msg = build_contact_email(payload)
-    # send in background so API is fast
-    bg.add_task(send_email_message, msg)
+
+    # Send INLINE (reliable on serverless)
+    try:
+        await aiosmtplib.send(
+            msg,
+            hostname=SMTP_HOST, port=SMTP_PORT, start_tls=True,
+            username=SMTP_USER, password=SMTP_PASS,
+        )
+    except Exception as e:
+        # log e in real code
+        raise HTTPException(status_code=502, detail=f"Email send failed: {e}")
+
     return {"message": "Your message has been sent successfully."}
+
+@app.get("/health")
+def health():
+    return {"ok": True}
