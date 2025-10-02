@@ -13,9 +13,9 @@ app.add_middleware(
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_USER = "benxfoxy@gmail.com"
-SMTP_PASS = "rjes bdxo dlrq tpel"  # replace with your Gmail App Password
-TO_EMAIL   = "benxfoxy@gmail.com"
+SMTP_USER = "amirsharafi5566@gmail.com"
+SMTP_PASS = "xxbi jjmz hqfi iulx"  # replace with your Gmail App Password
+TO_EMAIL   = "amirsharafi5566@gmail.com"
 FROM_EMAIL = SMTP_USER
 
 class ContactSchema(BaseModel):
